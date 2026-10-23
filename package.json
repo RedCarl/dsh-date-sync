@@ -1,0 +1,53 @@
+{
+  "name": "dsh-date-sync",
+  "version": "1.2.0",
+  "description": "通过 WebDAV 在多台电脑的 DeepSeek Harness 之间同步技能、MCP、模型配置、插件与会话；左侧栏显示连接状态并支持在线配置",
+  "type": "module",
+  "main": "index.js",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "webdav",
+    "sync",
+    "multi-device"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RedCarl/dsh-date-sync.git"
+  },
+  "homepage": "https://github.com/RedCarl/dsh-date-sync#readme",
+  "bugs": {
+    "url": "https://github.com/RedCarl/dsh-date-sync/issues"
+  }
+}

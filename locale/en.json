@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Data Sync",
+    "description": "Keeps skills, MCP servers, model settings, plugins, and sessions consistent across machines through WebDAV; a sidebar panel shows status and edits the connection."
+  }
+}
