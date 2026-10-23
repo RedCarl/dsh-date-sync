@@ -188,6 +188,20 @@ node test/client-test.mjs # 在隔离 VM 中执行 Client 模块并检查 slot �
 
 面板测试覆盖：状态接口、配置读取（不泄露密码）、方法限制、非法配置拒绝、保存落盘权限、引擎热重启、YAML 与面板配置的优先级、清除密码回退、手动同步 / 暂停 / 恢复、非 JSON 请求拒绝。Client 模块测试覆盖：工厂 ID、注入列表、slot 注册选项、图标 SVG、中英文字典键一致性。
 
+## 连接排查
+
+同步失败时面板和 `$DSH_HOME/date-sync/sync.log` 会写出底层原因。常见错误：
+
+| 日志 | 含义与处理 |
+|---|---|
+| `fetch failed ← ECONNRESET` | TCP 能连上，但发送 HTTP/TLS 后被对端重置。通常是端口未对外开放、防火墙/反向代理只允许特定来源、端口要求 PROXY 协议，或该端口并不是 WebDAV。用 `curl -vk https://host:port/` 对比 |
+| `ENOTFOUND` | 域名解析失败，检查 URL 拼写或 DNS |
+| `CERT_HAS_EXPIRED` / `DEPTH_ZERO_SELF_SIGNED_CERT` / `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | 证书不被 Node 信任。把 CA 证书放进文件，设置 `NODE_EXTRA_CA_CERTS=/path/ca.pem` 后重启 Harness；自签名也可改用受信任证书 |
+| `401` / `403` | 账号、密码或权限问题 |
+| `404` | URL 少了 WebDAV 根路径（如 `/dav`、`/remote.php/dav/files/me`） |
+
+先确认 WebDAV 根地址：浏览器或 `curl -vk -X PROPFIND -H 'Depth: 0' <url>` 返回 207 才算可用。
+
 ## 已知限制
 
 - WebDAV 没有服务端推送，远端改动最快也要一个轮询周期。
