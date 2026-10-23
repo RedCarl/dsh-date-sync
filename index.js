@@ -231,7 +231,7 @@ export function apply(ctx, rawConfig) {
       enabled: false,
       paused: false,
       syncing: false,
-      remote: { url: '', root: '', authenticated: false },
+      remote: { provider: 'webdav', url: '', bucket: '', root: '', authenticated: false },
       device: '',
       conflictPolicy: '',
       deletions: '',
@@ -281,7 +281,10 @@ export function apply(ctx, rawConfig) {
           ? 'env'
           : 'none'
     return {
+      provider: raw.provider === 's3' ? 's3' : 'webdav',
       url: typeof raw.url === 'string' ? raw.url : '',
+      bucket: typeof raw.bucket === 'string' ? raw.bucket : '',
+      region: typeof raw.region === 'string' && raw.region.trim() ? raw.region.trim() : 'us-east-1',
       username: typeof raw.username === 'string' ? raw.username : '',
       remoteRoot: typeof raw.remoteRoot === 'string' && raw.remoteRoot.trim() ? raw.remoteRoot.trim() : 'dsh-sync',
       pollIntervalMs: resolved?.pollIntervalMs ?? 15000,
@@ -310,12 +313,25 @@ export function apply(ctx, rawConfig) {
     const previous = fileConfig && typeof fileConfig === 'object' ? { ...fileConfig } : {}
     const next = { ...previous }
 
+    if ('provider' in body) {
+      if (body.provider !== 'webdav' && body.provider !== 's3') throw new Error('provider must be webdav or s3')
+      next.provider = body.provider
+    }
     if ('url' in body) {
       if (typeof body.url !== 'string') throw new Error('url must be a string')
       const url = body.url.trim()
       if (url && !/^https?:\/\//i.test(url)) throw new Error('url must start with http:// or https://')
       next.url = url
     }
+    if ('bucket' in body) {
+      if (typeof body.bucket !== 'string') throw new Error('bucket must be a string')
+      next.bucket = body.bucket.trim()
+    }
+    if ('region' in body) {
+      if (typeof body.region !== 'string') throw new Error('region must be a string')
+      next.region = body.region.trim() || 'us-east-1'
+    }
+    if ((next.provider ?? 'webdav') === 's3' && !next.bucket) throw new Error('bucket is required in S3 mode')
     if ('username' in body) {
       if (typeof body.username !== 'string') throw new Error('username must be a string')
       next.username = body.username

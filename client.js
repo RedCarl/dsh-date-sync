@@ -19,15 +19,28 @@ window.__ModuleLoader__.load({
       title: '数据同步',
       subtitle: '通过 WebDAV 让技能、MCP、模型配置、插件与会话在多台电脑之间保持一致。',
       configTitle: '连接配置',
+      provider: '同步协议',
+      webdav: 'WebDAV',
+      s3: 'S3 对象存储',
+      endpoint: 'S3 Endpoint',
+      endpointHint: '例如 https://s3.example.com:9000（MinIO 或兼容 S3 的服务）',
+      bucket: 'Bucket',
+      bucketHint: '存储桶名称',
+      region: 'Region',
+      regionHint: 'MinIO 一般填 us-east-1',
+      accessKey: 'Access Key',
+      secretKey: 'Secret Key',
+      keyPrefix: '对象前缀',
+      keyPrefixHint: 'bucket 内的路径前缀，默认 dsh-sync',
       url: 'WebDAV 地址',
       urlHint: '例如 https://dav.example.com/remote.php/dav/files/me/harness',
       username: '用户名',
       password: '密码',
       passwordStored: '已保存密码，留空则不修改',
       passwordEmpty: '可选；留空则使用环境变量',
-      passwordEnv: '密码环境变量',
+      passwordEnv: '密码 / 密钥环境变量',
       passwordEnvHint: '优先使用该环境变量，避免密码写入任何文件',
-      clearPassword: '清除面板保存的密码',
+      clearPassword: '清除已保存的密码 / 密钥',
       remoteRoot: '远程根目录',
       remoteRootHint: 'WebDAV 上的子目录，默认 dsh-sync',
       pollInterval: '拉取间隔（秒）',
@@ -93,15 +106,28 @@ window.__ModuleLoader__.load({
       title: 'Data Sync',
       subtitle: 'Keep skills, MCP servers, model settings, plugins, and sessions consistent across computers through WebDAV.',
       configTitle: 'Connection',
+      provider: 'Protocol',
+      webdav: 'WebDAV',
+      s3: 'S3 object storage',
+      endpoint: 'S3 endpoint',
+      endpointHint: 'For example https://s3.example.com:9000 (MinIO or S3-compatible)',
+      bucket: 'Bucket',
+      bucketHint: 'Bucket name',
+      region: 'Region',
+      regionHint: 'MinIO usually accepts us-east-1',
+      accessKey: 'Access key',
+      secretKey: 'Secret key',
+      keyPrefix: 'Object prefix',
+      keyPrefixHint: 'Path prefix inside the bucket, default dsh-sync',
       url: 'WebDAV URL',
       urlHint: 'For example https://dav.example.com/remote.php/dav/files/me/harness',
       username: 'Username',
       password: 'Password',
       passwordStored: 'A password is saved; leave blank to keep it',
       passwordEmpty: 'Optional; leave blank to use the environment variable',
-      passwordEnv: 'Password environment variable',
+      passwordEnv: 'Password / secret environment variable',
       passwordEnvHint: 'Takes precedence and keeps the password out of every file',
-      clearPassword: 'Clear the panel-saved password',
+      clearPassword: 'Clear the saved password / secret key',
       remoteRoot: 'Remote root folder',
       remoteRootHint: 'Subfolder on the WebDAV server, default dsh-sync',
       pollInterval: 'Pull interval (seconds)',
@@ -195,6 +221,10 @@ window.__ModuleLoader__.load({
       .dws-input { box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); font: inherit; font-size: 13px; }
       .dws-input:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 0; border-color: transparent; }
       .dws-hint { font-size: 11px; line-height: 1.45; color: var(--dsw-alias-label-secondary); }
+      .dws-segmented { display: inline-flex; gap: 3px; padding: 3px; border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); align-self: flex-start; }
+      .dws-segment { appearance: none; border: 0; border-radius: 7px; padding: 5px 12px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }
+      .dws-segment[aria-pressed="true"] { background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); }
+      .dws-segment:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 1px; }
       .dws-inline { display: flex; align-items: center; gap: 10px; font-size: 13px; }
       .dws-switch { box-sizing: border-box; position: relative; flex: 0 0 auto; width: 36px; height: 20px; padding: 2px; border: 0; border-radius: 999px; background: var(--dsw-alias-border-l3); cursor: pointer; transition: background-color 0.12s ease; }
       .dws-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
@@ -409,7 +439,10 @@ window.__ModuleLoader__.load({
       const applyConfigPayload = React.useCallback((payload) => {
         setConfig(payload)
         setForm({
+          provider: payload.provider === 's3' ? 's3' : 'webdav',
           url: payload.url ?? '',
+          bucket: payload.bucket ?? '',
+          region: payload.region ?? 'us-east-1',
           username: payload.username ?? '',
           password: '',
           clearPassword: false,
@@ -475,7 +508,10 @@ window.__ModuleLoader__.load({
         setNotice('')
         try {
           const payload = {
+            provider: current.provider,
             url: current.url,
+            bucket: current.bucket,
+            region: current.region,
             username: current.username,
             remoteRoot: current.remoteRoot,
             pollIntervalMs: Math.round(Number(current.pollSeconds || '0') * 1000),
@@ -550,6 +586,7 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const isS3 = form && form.provider === 's3'
       const scopeLabels = {
         skills: t('scopeSkills'),
         agentSkills: t('scopeAgentSkills'),
@@ -596,20 +633,58 @@ window.__ModuleLoader__.load({
             h('h2', null, t('configTitle')),
             form
               ? h('div', { className: 'dws-form' },
+                  h('div', { className: 'dws-field wide' },
+                    h('span', { className: 'dws-label' }, t('provider')),
+                    h('div', { className: 'dws-segmented' },
+                      ['webdav', 's3'].map((provider) => h('button', {
+                        key: provider,
+                        type: 'button',
+                        className: 'dws-segment',
+                        'aria-pressed': form.provider === provider,
+                        onClick: () => patch({ provider }),
+                      }, t(provider))),
+                    ),
+                  ),
                   h('label', { className: 'dws-field wide' },
-                    h('span', { className: 'dws-label' }, t('url')),
+                    h('span', { className: 'dws-label' }, t(isS3 ? 'endpoint' : 'url')),
                     h('input', {
                       className: 'dws-input',
                       type: 'url',
                       spellCheck: false,
-                      placeholder: 'https://dav.example.com/remote.php/dav/files/me/harness',
+                      placeholder: isS3 ? 'https://s3.example.com:9000' : 'https://dav.example.com/remote.php/dav/files/me/harness',
                       value: form.url,
                       onChange: (event) => patch({ url: event.target.value }),
                     }),
-                    h('span', { className: 'dws-hint' }, t('urlHint')),
+                    h('span', { className: 'dws-hint' }, t(isS3 ? 'endpointHint' : 'urlHint')),
                   ),
+                  isS3
+                    ? h('label', { className: 'dws-field' },
+                        h('span', { className: 'dws-label' }, t('bucket')),
+                        h('input', {
+                          className: 'dws-input',
+                          type: 'text',
+                          spellCheck: false,
+                          value: form.bucket,
+                          onChange: (event) => patch({ bucket: event.target.value }),
+                        }),
+                        h('span', { className: 'dws-hint' }, t('bucketHint')),
+                      )
+                    : null,
+                  isS3
+                    ? h('label', { className: 'dws-field' },
+                        h('span', { className: 'dws-label' }, t('region')),
+                        h('input', {
+                          className: 'dws-input',
+                          type: 'text',
+                          spellCheck: false,
+                          value: form.region,
+                          onChange: (event) => patch({ region: event.target.value }),
+                        }),
+                        h('span', { className: 'dws-hint' }, t('regionHint')),
+                      )
+                    : null,
                   h('label', { className: 'dws-field' },
-                    h('span', { className: 'dws-label' }, t('username')),
+                    h('span', { className: 'dws-label' }, t(isS3 ? 'accessKey' : 'username')),
                     h('input', {
                       className: 'dws-input',
                       type: 'text',
@@ -619,7 +694,7 @@ window.__ModuleLoader__.load({
                     }),
                   ),
                   h('label', { className: 'dws-field' },
-                    h('span', { className: 'dws-label' }, t('password')),
+                    h('span', { className: 'dws-label' }, t(isS3 ? 'secretKey' : 'password')),
                     h('input', {
                       className: 'dws-input',
                       type: 'password',
@@ -649,7 +724,7 @@ window.__ModuleLoader__.load({
                     h('span', { className: 'dws-hint' }, t('passwordEnvHint')),
                   ),
                   h('label', { className: 'dws-field' },
-                    h('span', { className: 'dws-label' }, t('remoteRoot')),
+                    h('span', { className: 'dws-label' }, t(isS3 ? 'keyPrefix' : 'remoteRoot')),
                     h('input', {
                       className: 'dws-input',
                       type: 'text',
@@ -657,7 +732,7 @@ window.__ModuleLoader__.load({
                       value: form.remoteRoot,
                       onChange: (event) => patch({ remoteRoot: event.target.value }),
                     }),
-                    h('span', { className: 'dws-hint' }, t('remoteRootHint')),
+                    h('span', { className: 'dws-hint' }, t(isS3 ? 'keyPrefixHint' : 'remoteRootHint')),
                   ),
                   h('label', { className: 'dws-field' },
                     h('span', { className: 'dws-label' }, t('pollInterval')),
@@ -754,7 +829,11 @@ window.__ModuleLoader__.load({
             ),
             h('div', { className: 'dws-meta' },
               meta(h, t('lastSync'), formatTime(render && render.lastSyncAt, locale)),
-              meta(h, t('remoteTarget'), render && render.remote ? `${render.remote.url || '—'} / ${render.remote.root || '—'}` : '—'),
+              meta(h, t('remoteTarget'), render && render.remote
+                ? render.remote.provider === 's3'
+                  ? `s3://${render.remote.bucket || '—'}/${render.remote.root || ''}`
+                  : `${render.remote.url || '—'} / ${render.remote.root || '—'}`
+                : '—'),
               meta(h, t('configFile'), render && render.configFile ? render.configFile : '—', true),
               meta(h, t('conflictCopies'), `${(render && render.conflictsOnDisk) ?? 0} ${t('copies')}`),
             ),

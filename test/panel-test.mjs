@@ -172,6 +172,8 @@ await check('config route exposes settings but never the password', async () => 
   assert.equal(Object.prototype.hasOwnProperty.call(json, 'password'), false)
   assert.equal(json.scopes.skills, true)
   assert.equal(json.scopes.credentials, false)
+  assert.equal(json.provider, 'webdav')
+  assert.equal(json.region, 'us-east-1')
 })
 
 await check('a method the route does not own is refused', async () => {
@@ -252,6 +254,26 @@ await check('action route runs a sync cycle and pause/resume', async () => {
   assert.equal(resumed.json.status.paused, false)
   const rejected = await call('POST', '/api/date-sync/action', { action: 'explode' })
   assert.equal(rejected.response.status, 400)
+})
+
+await check('S3 mode validates the bucket and switches the engine', async () => {
+  const missing = await call('POST', '/api/date-sync/config', { provider: 's3' })
+  assert.equal(missing.response.status, 400)
+  assert.match(missing.json.error, /bucket/i)
+  const saved = await call('POST', '/api/date-sync/config', {
+    provider: 's3',
+    url: 'http://127.0.0.1:9',
+    bucket: 'panel-bucket',
+    region: 'us-east-1',
+  })
+  assert.equal(saved.response.status, 200)
+  assert.equal(saved.json.config.provider, 's3')
+  assert.equal(saved.json.config.bucket, 'panel-bucket')
+  assert.equal(saved.json.status.remote.provider, 's3')
+  assert.equal(saved.json.status.remote.bucket, 'panel-bucket')
+  const disk = JSON.parse(await fsp.readFile(configFile, 'utf8'))
+  assert.equal(disk.provider, 's3')
+  assert.equal(disk.bucket, 'panel-bucket')
 })
 
 await check('a non-JSON body is refused before parsing', async () => {

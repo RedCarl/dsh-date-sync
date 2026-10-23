@@ -1,12 +1,12 @@
 # dsh-date-sync
 
-通过一个 WebDAV 目录，把多台电脑上的 DeepSeek Harness 环境保持一致：**技能（skills）、MCP 服务器、模型配置、插件开关与配置、会话记录**。左侧栏提供独立面板，用于查看状态、手动同步和修改连接配置。
+通过 **WebDAV** 或 **S3 兼容对象存储**（MinIO、RustFS、AWS S3 等），把多台电脑上的 DeepSeek Harness 环境保持一致：**技能（skills）、MCP 服务器、模型配置、插件开关与配置、会话记录**。左侧栏提供独立面板，用于查看状态、手动同步和修改连接配置。
 
 插件是纯 Node 实现：没有 npm 依赖，只用 `fetch` 和 Node 内置模块，适合以本地目录（`link:`）方式安装。
 
 ## 同步内容
 
-| 作用域 | 本地路径 | WebDAV 路径 | 默认 |
+| 作用域 | 本地路径 | 远端路径 | 默认 |
 |---|---|---|---|
 | `skills` | `$DSH_HOME/skills` | `<remoteRoot>/skills/…` | 开 |
 | `agentSkills` | `~/.agents/skills`（或 `$DSH_AGENTS_HOME/skills`） | `<remoteRoot>/agents-skills/…` | 开 |
@@ -23,6 +23,32 @@ MCP 服务器、模型（provider/model）和插件开关都写在 profile 的 `
 - **正在使用的会话不会被覆盖**：如果某个会话在本机是打开状态，只跳过**下载**（避免远端版本覆盖正在追加的日志）；上传会在最后一次写入后静默 `settleMs` 再执行，保证压缩帧完整。
 - **写入是原子的**：下载先写同目录临时文件再 `rename`，Harness 的文件监听和 HMR 不会读到半个文件。profile patch 被替换后，HMR 会自动重载配置。
 - **轮询是按需增量的**：每轮用 PROPFIND 只取目录元数据，内容哈希只对“mtime/大小变了”的文件计算。
+
+## 存储后端
+
+面板顶部的「同步协议」可以切换两种后端：
+
+### WebDAV（默认）
+
+Nextcloud、群晖、Alist/OpenList、Apache mod_dav、rclone serve webdav 等。配置 `url` + `username` + `password`。
+
+### S3 兼容对象存储
+
+MinIO、RustFS、AWS S3、Cloudflare R2 等。配置 `url`（endpoint）+ `bucket` + `region` + Access Key + Secret Key：
+
+```yaml
+provider: s3
+url: 'https://s3.example.com'        # endpoint，不要带 bucket
+bucket: 'dsh-sync'
+region: 'us-east-1'                  # MinIO/RustFS 通常填 us-east-1
+username: 'ACCESS_KEY'               # Access Key
+password: 'SECRET_KEY'               # Secret Key
+remoteRoot: 'dsh-sync'               # bucket 内的对象前缀
+```
+
+需要该凭据对 bucket 具备 **ListBucket / GetObject / PutObject / DeleteObject** 权限。对象按扁平 key 存储：`<remoteRoot>/skills/...`、`<remoteRoot>/sessions/...`。默认使用 path-style（`https://endpoint/bucket/key`），适用于 IP/自建域名；AWS 这类虚拟主机风格可设 `pathStyle: false`。
+
+S3 的 `If-Match` / `If-None-Match` 条件写入用于防止并发覆盖；服务端不支持时会退回普通写入。
 
 ## 安装
 
@@ -62,7 +88,10 @@ dsh plugin --profile web add link:/absolute/path/to/dsh-date-sync
 - id: date-sync
   name: 'dsh-date-sync'
   config:
-    url: ''            # 填了才启用
+    provider: webdav   # webdav | s3
+    url: ''            # WebDAV 地址或 S3 endpoint，填了才启用
+    bucket: ''         # S3 模式必填
+    region: us-east-1
     username: ''
     passwordEnv: DSH_WEBDAV_PASSWORD
     remoteRoot: dsh-sync
@@ -181,12 +210,13 @@ dsh plugin --profile web add <package>
 ```bash
 node test/sync-test.mjs   # 本地起一个临时 WebDAV 服务，模拟两台机器
 node test/panel-test.mjs  # 用假的 Cordis Context 驱动面板 JSON 接口
+node test/s3-test.mjs     # 本地 S3 服务（验证 SigV4）+ 双机器同步
 node test/client-test.mjs # 在隔离 VM 中执行 Client 模块并检查 slot 注册
 ```
 
 同步测试覆盖：首次同步、双向增量、中文路径、冲突（含失败方留档）、删除传播、第三方直接上传、非法 patch 拒绝、活动会话延后、幂等、监听推送、轮询拉取、根目录丢失保护。
 
-面板测试覆盖：状态接口、配置读取（不泄露密码）、方法限制、非法配置拒绝、保存落盘权限、引擎热重启、YAML 与面板配置的优先级、清除密码回退、手动同步 / 暂停 / 恢复、非 JSON 请求拒绝。Client 模块测试覆盖：工厂 ID、注入列表、slot 注册选项、图标 SVG、中英文字典键一致性。
+面板测试覆盖：状态接口、配置读取（不泄露密码）、方法限制、非法配置拒绝、保存落盘权限、引擎热重启、YAML 与面板配置的优先级、清除密码回退、手动同步 / 暂停 / 恢复、S3 模式保存、非 JSON 请求拒绝。S3 测试覆盖：SigV4 签名、ListObjectsV2 分页、首同步、双向增量、删除传播、条件写入、幂等。Client 模块测试覆盖：工厂 ID、注入列表、slot 注册选项、图标 SVG、中英文字典键一致性。
 
 ## 连接排查
 
@@ -199,6 +229,10 @@ node test/client-test.mjs # 在隔离 VM 中执行 Client 模块并检查 slot �
 | `CERT_HAS_EXPIRED` / `DEPTH_ZERO_SELF_SIGNED_CERT` / `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | 证书不被 Node 信任。把 CA 证书放进文件，设置 `NODE_EXTRA_CA_CERTS=/path/ca.pem` 后重启 Harness；自签名也可改用受信任证书 |
 | `401` / `403` | 账号、密码或权限问题 |
 | `404` | URL 少了 WebDAV 根路径（如 `/dav`、`/remote.php/dav/files/me`） |
+| `SignatureDoesNotMatch` | S3 Access Key / Secret Key 错误，或 region 与服务端不一致 |
+| `NoSuchBucket` | bucket 名称错误或没有权限 |
+| `AccessDenied` | S3 凭据缺少 ListBucket / GetObject / PutObject / DeleteObject 权限 |
+| `the server answered with an S3-style error` | 当前协议选错：把 S3 endpoint 当成 WebDAV，改用「S3 对象存储」模式 |
 
 先确认 WebDAV 根地址：浏览器或 `curl -vk -X PROPFIND -H 'Depth: 0' <url>` 返回 207 才算可用。
 

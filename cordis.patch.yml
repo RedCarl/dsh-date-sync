@@ -1,13 +1,16 @@
 # dsh-date-sync — bundle patch
 #
-# 插入 WebDAV 同步插件。默认不连接任何服务器：填好 url（以及凭据）后才会开始同步。
-# 安装：dsh plugin --profile web add link:/path/to/date-sync
+# 插入数据同步插件（WebDAV / S3）。默认不连接任何服务器：填好 url、bucket 与凭据后才会开始同步。
+# 安装：dsh plugin --profile web add link:/path/to/dsh-date-sync
 # 或者由 plugin_manager 的 install_bundle 选择本包。
 - insert:
     - id: date-sync
       name: 'dsh-date-sync'
       config:
+        provider: webdav
         url: ''
+        bucket: ''
+        region: us-east-1
         username: ''
         passwordEnv: DSH_WEBDAV_PASSWORD
         remoteRoot: dsh-sync
