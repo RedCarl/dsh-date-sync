@@ -169,12 +169,12 @@ window.__ModuleLoader__.load({
       .dws-title { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
       .dws-sub { margin: 0; max-width: 560px; font-size: 13px; line-height: 1.55; color: var(--dsw-alias-label-secondary); }
       .dws-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-      .dws-btn { appearance: none; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 13px; line-height: 1.35; cursor: pointer; white-space: nowrap; }
-      .dws-btn:hover:not(:disabled) { background: var(--dsw-alias-bg-layer-1); }
+      .dws-btn { appearance: none; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-button-elevated-fill); color: var(--dsw-alias-label-primary); border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 13px; line-height: 1.35; cursor: pointer; white-space: nowrap; }
+      .dws-btn:hover:not(:disabled) { background: var(--dsw-alias-button-floating-hover); }
       .dws-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
       .dws-btn:disabled { opacity: 0.45; cursor: default; }
-      .dws-btn.primary { background: var(--dsw-alias-brand-primary); border-color: transparent; color: #fff; }
-      .dws-btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
+      .dws-btn.primary { background: var(--dsw-alias-button-primary-fill); border-color: transparent; color: var(--dsw-alias-label-primary-foreground); }
+      .dws-btn.primary:hover:not(:disabled) { background: var(--dsw-alias-button-primary-hover); }
       .dws-card { margin-bottom: 14px; padding: 18px 20px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); }
       .dws-card h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 14px; font-weight: 600; }
       .dws-card h2 .dws-card-note { font-weight: 400; font-size: 12px; color: var(--dsw-alias-label-secondary); }
@@ -195,11 +195,16 @@ window.__ModuleLoader__.load({
       .dws-input { box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); font: inherit; font-size: 13px; }
       .dws-input:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 0; border-color: transparent; }
       .dws-hint { font-size: 11px; line-height: 1.45; color: var(--dsw-alias-label-secondary); }
-      .dws-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-      .dws-check input { width: 15px; height: 15px; accent-color: var(--dsw-alias-brand-primary); }
+      .dws-inline { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+      .dws-switch { box-sizing: border-box; position: relative; flex: 0 0 auto; width: 36px; height: 20px; padding: 2px; border: 0; border-radius: 999px; background: var(--dsw-alias-border-l3); cursor: pointer; transition: background-color 0.12s ease; }
+      .dws-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
+      .dws-switch:disabled { cursor: default; opacity: 0.5; }
+      .dws-switch:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+      .dws-switch-thumb { display: block; width: 16px; height: 16px; border-radius: 50%; background: var(--dsw-alias-switch-thumb); transition: transform 0.12s ease, background-color 0.12s ease; }
+      .dws-switch[aria-checked="true"] .dws-switch-thumb { transform: translateX(16px); background: var(--dsw-alias-label-primary-foreground); }
       .dws-scopes { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; margin-top: 16px; }
       .dws-scope { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 9px; background: var(--dsw-alias-bg-layer-2); }
-      .dws-scope input { margin-top: 2px; width: 15px; height: 15px; accent-color: var(--dsw-alias-brand-primary); flex: none; }
+      .dws-scope .dws-switch { margin-top: 1px; }
       .dws-scope-body { min-width: 0; }
       .dws-scope-name { font-size: 13px; font-weight: 500; }
       .dws-scope-path { margin-top: 2px; font-size: 11px; line-height: 1.45; color: var(--dsw-alias-label-secondary); word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
@@ -286,6 +291,19 @@ window.__ModuleLoader__.load({
       const date = new Date(value)
       if (Number.isNaN(date.getTime())) return '--:--:--'
       return date.toLocaleTimeString(undefined, { hour12: false })
+    }
+
+    /** Host-style switch: 36×20 track, 16px thumb, token-driven colors. */
+    function Switch({ checked, onChange, label, disabled }) {
+      return h('button', {
+        type: 'button',
+        role: 'switch',
+        'aria-checked': checked,
+        'aria-label': label,
+        className: 'dws-switch',
+        disabled,
+        onClick: () => onChange(!checked),
+      }, h('span', { className: 'dws-switch-thumb' }))
     }
 
     /**
@@ -610,13 +628,13 @@ window.__ModuleLoader__.load({
                       value: form.password,
                       onChange: (event) => patch({ password: event.target.value, clearPassword: false }),
                     }),
-                    h('label', { className: 'dws-check' },
-                      h('input', {
-                        type: 'checkbox',
+                    h('div', { className: 'dws-inline' },
+                      h(Switch, {
                         checked: form.clearPassword === true,
-                        onChange: (event) => patch({ clearPassword: event.target.checked, password: '' }),
+                        onChange: (value) => patch({ clearPassword: value, password: '' }),
+                        label: t('clearPassword'),
                       }),
-                      t('clearPassword'),
+                      h('span', null, t('clearPassword')),
                     ),
                   ),
                   h('label', { className: 'dws-field' },
@@ -677,13 +695,13 @@ window.__ModuleLoader__.load({
                     ),
                   ),
                   h('div', { className: 'dws-field wide' },
-                    h('label', { className: 'dws-check' },
-                      h('input', {
-                        type: 'checkbox',
+                    h('div', { className: 'dws-inline' },
+                      h(Switch, {
                         checked: form.watch !== false,
-                        onChange: (event) => patch({ watch: event.target.checked }),
+                        onChange: (value) => patch({ watch: value }),
+                        label: t('watch'),
                       }),
-                      t('watch'),
+                      h('span', null, t('watch')),
                     ),
                   ),
                   h('div', { className: 'dws-field wide' },
@@ -691,11 +709,11 @@ window.__ModuleLoader__.load({
                     h('div', { className: 'dws-scopes' },
                       Object.keys(scopeLabels).map((key) => {
                         const scope = scopes.find((item) => item.key === key)
-                        return h('label', { key, className: 'dws-scope' },
-                          h('input', {
-                            type: 'checkbox',
+                        return h('div', { key, className: 'dws-scope' },
+                          h(Switch, {
                             checked: form.scopes[key] !== false && (key !== 'credentials' || form.scopes[key] === true),
-                            onChange: (event) => patchScope(key, event.target.checked),
+                            onChange: (value) => patchScope(key, value),
+                            label: scopeLabels[key],
                           }),
                           h('span', { className: 'dws-scope-body' },
                             h('span', { className: 'dws-scope-name' }, scopeLabels[key]),
@@ -798,7 +816,15 @@ window.__ModuleLoader__.load({
     return {
       inject: ['slots', 'locale'],
       apply(ctx) {
-        ctx.effect(() => ctx.locale.register(NS, { zh: ZH, en: EN }), 'date-sync: dictionaries')
+        // A live module replacement can apply the new generation before the
+        // previous one has released the locale namespace. The dictionaries are
+        // identical, so a duplicate registration must not abort the slots.
+        try {
+          ctx.effect(() => ctx.locale.register(NS, { zh: ZH, en: EN }), 'date-sync: dictionaries')
+        } catch {
+          // Another generation still owns the namespace; slot registration below
+          // remains the important part.
+        }
 
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
           name: 'sidebar.panellist',

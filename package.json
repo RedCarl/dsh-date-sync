@@ -1,6 +1,6 @@
 {
   "name": "dsh-date-sync",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "通过 WebDAV 在多台电脑的 DeepSeek Harness 之间同步技能、MCP、模型配置、插件与会话；左侧栏显示连接状态并支持在线配置",
   "type": "module",
   "main": "index.js",
