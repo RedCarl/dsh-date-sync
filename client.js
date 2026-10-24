@@ -59,7 +59,7 @@ window.__ModuleLoader__.load({
       scopeSessions: '会话记录',
       scopeProfile: 'MCP / 模型 / 插件配置',
       scopeCredentials: '凭据文件（明文，谨慎）',
-      save: '保存并应用',
+      save: '保存',
       saving: '应用中…',
       saved: '已保存并重新启动同步引擎',
       saveFailed: '保存失败',
@@ -98,6 +98,9 @@ window.__ModuleLoader__.load({
       advanced: '高级',
       basic: '基本',
       activityEmpty: '同步引擎会在这里记录上传、下载、冲突和错误。',
+      logs: '日志',
+      hide: '收起',
+      notConfiguredHint: '填写连接信息并保存后开始同步',
       dirty: '有未保存的修改',
     }
 
@@ -146,7 +149,7 @@ window.__ModuleLoader__.load({
       scopeSessions: 'Sessions',
       scopeProfile: 'MCP / models / plugin config',
       scopeCredentials: 'Credential file (plaintext, careful)',
-      save: 'Save and apply',
+      save: 'Save',
       saving: 'Applying…',
       saved: 'Saved and restarted the sync engine',
       saveFailed: 'Save failed',
@@ -185,84 +188,76 @@ window.__ModuleLoader__.load({
       advanced: 'Advanced',
       basic: 'Basics',
       activityEmpty: 'Uploads, downloads, conflicts, and errors will appear here.',
+      logs: 'Log',
+      hide: 'Hide',
+      notConfiguredHint: 'Fill in the connection and save to start',
       dirty: 'Unsaved changes',
     }
 
     const CSS = `
       .dws-page { height: 100%; overflow: auto; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
-      .dws-wrap { max-width: 940px; margin: 0 auto; padding: 28px 28px 72px; box-sizing: border-box; }
-      .dws-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
-      .dws-title { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
-      .dws-sub { margin: 0; max-width: 560px; font-size: 13px; line-height: 1.55; color: var(--dsw-alias-label-secondary); }
-      .dws-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-      .dws-btn { appearance: none; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-button-elevated-fill); color: var(--dsw-alias-label-primary); border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 13px; line-height: 1.35; cursor: pointer; white-space: nowrap; }
+      .dws-wrap { max-width: 720px; margin: 0 auto; padding: 32px 24px 64px; box-sizing: border-box; }
+      .dws-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+      .dws-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .dws-title { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+      .dws-actions { display: flex; gap: 8px; flex: none; }
+      .dws-btn { appearance: none; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-button-elevated-fill); color: var(--dsw-alias-label-primary); border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 12px; line-height: 1.4; cursor: pointer; white-space: nowrap; }
       .dws-btn:hover:not(:disabled) { background: var(--dsw-alias-button-floating-hover); }
-      .dws-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+      .dws-btn:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 1px; }
       .dws-btn:disabled { opacity: 0.45; cursor: default; }
       .dws-btn.primary { background: var(--dsw-alias-button-primary-fill); border-color: transparent; color: var(--dsw-alias-label-primary-foreground); }
       .dws-btn.primary:hover:not(:disabled) { background: var(--dsw-alias-button-primary-hover); }
-      .dws-card { margin-bottom: 14px; padding: 18px 20px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); }
-      .dws-card h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 14px; font-weight: 600; }
-      .dws-card h2 .dws-card-note { font-weight: 400; font-size: 12px; color: var(--dsw-alias-label-secondary); }
-      .dws-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px; font-size: 12px; color: var(--dsw-alias-label-secondary); white-space: nowrap; }
-      .dws-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+      .dws-card { background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+      .dws-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px; font-size: 11px; color: var(--dsw-alias-label-secondary); white-space: nowrap; }
+      .dws-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
       .dws-pill.ok { color: var(--dsw-alias-state-success-primary); border-color: currentColor; }
       .dws-pill.busy { color: var(--dsw-alias-brand-primary); border-color: currentColor; }
       .dws-pill.warn { color: var(--dsw-alias-state-warn-primary); border-color: currentColor; }
       .dws-pill.error { color: var(--dsw-alias-state-error-primary); border-color: currentColor; }
       .dws-pill.idle { color: var(--dsw-alias-state-idle-primary); }
-      .dws-banner { display: flex; gap: 10px; margin-bottom: 14px; padding: 11px 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; font-size: 13px; line-height: 1.5; color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-2); }
-      .dws-banner.error { color: var(--dsw-alias-state-error-primary); border-color: currentColor; }
-      .dws-banner.warn { color: var(--dsw-alias-state-warn-primary); border-color: currentColor; }
-      .dws-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(224px, 1fr)); gap: 14px; }
-      .dws-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-      .dws-field.wide { grid-column: 1 / -1; }
-      .dws-label { font-size: 12px; color: var(--dsw-alias-label-secondary); }
-      .dws-input { box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); font: inherit; font-size: 13px; }
-      .dws-input:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 0; border-color: transparent; }
-      .dws-hint { font-size: 11px; line-height: 1.45; color: var(--dsw-alias-label-secondary); }
-      .dws-segmented { display: inline-flex; gap: 3px; padding: 3px; border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); align-self: flex-start; }
+      .dws-segmented { display: inline-flex; gap: 3px; padding: 3px; border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); }
       .dws-segment { appearance: none; border: 0; border-radius: 7px; padding: 5px 12px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }
       .dws-segment[aria-pressed="true"] { background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); }
       .dws-segment:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 1px; }
-      .dws-inline { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-      .dws-switch { box-sizing: border-box; position: relative; flex: 0 0 auto; width: 36px; height: 20px; padding: 2px; border: 0; border-radius: 999px; background: var(--dsw-alias-border-l3); cursor: pointer; transition: background-color 0.12s ease; }
+      .dws-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+      .dws-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+      .dws-field.wide { grid-column: 1 / -1; }
+      .dws-label { font-size: 11px; color: var(--dsw-alias-label-secondary); }
+      .dws-input { box-sizing: border-box; width: 100%; padding: 7px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); font: inherit; font-size: 13px; }
+      .dws-input:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 0; border-color: transparent; }
+      .dws-save-cell { display: flex; align-items: flex-end; justify-content: flex-end; }
+      .dws-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 0 4px 14px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+      .dws-counts { display: flex; gap: 10px; font-variant-numeric: tabular-nums; }
+      .dws-warn-text { color: var(--dsw-alias-state-warn-primary); }
+      .dws-error-text { color: var(--dsw-alias-state-error-primary); }
+      .dws-links { margin-left: auto; display: flex; gap: 12px; }
+      .dws-link { appearance: none; border: 0; background: none; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; padding: 0; cursor: pointer; }
+      .dws-link:hover { color: var(--dsw-alias-label-primary); }
+      .dws-link:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+      .dws-error { margin: 0 0 12px; padding: 0 4px; font-size: 12px; line-height: 1.45; color: var(--dsw-alias-state-error-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .dws-ok { margin: 0 0 12px; padding: 0 4px; font-size: 12px; color: var(--dsw-alias-state-success-primary); }
+      .dws-muted { margin: 0; padding: 0 4px; font-size: 11px; line-height: 1.5; color: var(--dsw-alias-label-secondary); word-break: break-word; }
+      .dws-scopes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+      .dws-scope { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+      .dws-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; }
+      .dws-spacer { flex: 1; }
+      .dws-switch { box-sizing: border-box; position: relative; flex: 0 0 auto; width: 34px; height: 19px; padding: 2px; border: 0; border-radius: 999px; background: var(--dsw-alias-border-l3); cursor: pointer; transition: background-color 0.12s ease; }
       .dws-switch[aria-checked="true"] { background: var(--dsw-alias-brand-primary); }
       .dws-switch:disabled { cursor: default; opacity: 0.5; }
       .dws-switch:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
-      .dws-switch-thumb { display: block; width: 16px; height: 16px; border-radius: 50%; background: var(--dsw-alias-switch-thumb); transition: transform 0.12s ease, background-color 0.12s ease; }
-      .dws-switch[aria-checked="true"] .dws-switch-thumb { transform: translateX(16px); background: var(--dsw-alias-label-primary-foreground); }
-      .dws-scopes { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; margin-top: 16px; }
-      .dws-scope { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 9px; background: var(--dsw-alias-bg-layer-2); }
-      .dws-scope .dws-switch { margin-top: 1px; }
-      .dws-scope-body { min-width: 0; }
-      .dws-scope-name { font-size: 13px; font-weight: 500; }
-      .dws-scope-path { margin-top: 2px; font-size: 11px; line-height: 1.45; color: var(--dsw-alias-label-secondary); word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-      .dws-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 10px; }
-      .dws-stat { padding: 12px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-2); }
-      .dws-stat b { display: block; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
-      .dws-stat span { display: block; margin-top: 2px; font-size: 11px; color: var(--dsw-alias-label-secondary); }
-      .dws-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; }
-      .dws-meta-row { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-      .dws-meta-label { font-size: 11px; color: var(--dsw-alias-label-secondary); }
-      .dws-meta-value { font-size: 12px; line-height: 1.45; word-break: break-all; }
-      .dws-log { display: flex; flex-direction: column; max-height: 300px; overflow: auto; }
-      .dws-log-row { display: grid; grid-template-columns: 62px 52px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--dsw-alias-border-l1); font-size: 12px; }
+      .dws-switch-thumb { display: block; width: 15px; height: 15px; border-radius: 50%; background: var(--dsw-alias-switch-thumb); transition: transform 0.12s ease, background-color 0.12s ease; }
+      .dws-switch[aria-checked="true"] .dws-switch-thumb { transform: translateX(15px); background: var(--dsw-alias-label-primary-foreground); }
+      .dws-log { display: flex; flex-direction: column; }
+      .dws-log-row { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--dsw-alias-border-l1); font-size: 12px; align-items: baseline; }
       .dws-log-row:last-child { border-bottom: none; }
       .dws-log-time { color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; }
-      .dws-log-level { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dsw-alias-label-secondary); }
-      .dws-log-level.warn { color: var(--dsw-alias-state-warn-primary); }
-      .dws-log-level.error { color: var(--dsw-alias-state-error-primary); }
       .dws-log-text { min-width: 0; word-break: break-word; }
-      .dws-empty { padding: 8px 0; font-size: 12px; color: var(--dsw-alias-label-secondary); }
-      .dws-save-row { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 4px; }
-      .dws-save-note { margin-right: auto; font-size: 12px; color: var(--dsw-alias-label-secondary); }
-      .dws-list { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); }
-      .dws-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; word-break: break-all; }
-      @media (max-width: 720px) {
+      .dws-log-row.warn .dws-log-text { color: var(--dsw-alias-state-warn-primary); }
+      .dws-log-row.error .dws-log-text { color: var(--dsw-alias-state-error-primary); }
+      @media (max-width: 640px) {
         .dws-wrap { padding: 20px 16px 56px; }
-        .dws-head { flex-direction: column; }
-        .dws-actions { justify-content: flex-start; }
+        .dws-grid { grid-template-columns: 1fr; }
+        .dws-head { flex-wrap: wrap; }
       }
     `
 
@@ -425,6 +420,8 @@ window.__ModuleLoader__.load({
       const [formError, setFormError] = React.useState('')
       const [notice, setNotice] = React.useState('')
       const [busy, setBusy] = React.useState('')
+      const [showAdvanced, setShowAdvanced] = React.useState(false)
+      const [showLog, setShowLog] = React.useState(false)
       const alive = React.useRef(true)
       const formRef = React.useRef(undefined)
       formRef.current = form
@@ -587,6 +584,7 @@ window.__ModuleLoader__.load({
       }
 
       const isS3 = form && form.provider === 's3'
+      const errorLine = render ? (render.configError || render.connectionError || render.lastError || '') : ''
       const scopeLabels = {
         skills: t('scopeSkills'),
         agentSkills: t('scopeAgentSkills'),
@@ -599,12 +597,11 @@ window.__ModuleLoader__.load({
         h('style', null, CSS),
         h('div', { className: 'dws-wrap' },
           h('header', { className: 'dws-head' },
-            h('div', null,
+            h('div', { className: 'dws-heading' },
               h('h1', { className: 'dws-title' }, t('title')),
-              h('p', { className: 'dws-sub' }, t('subtitle')),
+              h('span', { className: `dws-pill ${pillClass}` }, h('span', { className: 'dws-dot' }), pillLabel),
             ),
             h('div', { className: 'dws-actions' },
-              h('span', { className: `dws-pill ${pillClass}` }, h('span', { className: 'dws-dot' }), pillLabel),
               h('button', {
                 type: 'button',
                 className: 'dws-btn',
@@ -620,120 +617,126 @@ window.__ModuleLoader__.load({
             ),
           ),
 
-          statusError && !render
-            ? h('div', { className: 'dws-banner error' }, `${t('loadFailed')}: ${statusError}`)
-            : null,
-          render && !configured && !render.configError
-            ? h('div', { className: 'dws-banner' }, t('subtitle'))
-            : null,
-          formError ? h('div', { className: 'dws-banner error' }, formError) : null,
-          notice ? h('div', { className: 'dws-banner' }, notice) : null,
+          statusError && !render ? h('p', { className: 'dws-error' }, statusError) : null,
 
           h('section', { className: 'dws-card' },
-            h('h2', null, t('configTitle')),
             form
-              ? h('div', { className: 'dws-form' },
-                  h('div', { className: 'dws-field wide' },
-                    h('span', { className: 'dws-label' }, t('provider')),
-                    h('div', { className: 'dws-segmented' },
-                      ['webdav', 's3'].map((provider) => h('button', {
-                        key: provider,
-                        type: 'button',
-                        className: 'dws-segment',
-                        'aria-pressed': form.provider === provider,
-                        onClick: () => patch({ provider }),
-                      }, t(provider))),
-                    ),
+              ? h('div', null,
+                  h('div', { className: 'dws-segmented' },
+                    ['webdav', 's3'].map((provider) => h('button', {
+                      key: provider,
+                      type: 'button',
+                      className: 'dws-segment',
+                      'aria-pressed': form.provider === provider,
+                      onClick: () => patch({ provider }),
+                    }, t(provider))),
                   ),
-                  h('label', { className: 'dws-field wide' },
-                    h('span', { className: 'dws-label' }, t(isS3 ? 'endpoint' : 'url')),
-                    h('input', {
-                      className: 'dws-input',
-                      type: 'url',
-                      spellCheck: false,
-                      placeholder: isS3 ? 'https://s3.example.com:9000' : 'https://dav.example.com/remote.php/dav/files/me/harness',
-                      value: form.url,
-                      onChange: (event) => patch({ url: event.target.value }),
-                    }),
-                    h('span', { className: 'dws-hint' }, t(isS3 ? 'endpointHint' : 'urlHint')),
-                  ),
-                  isS3
-                    ? h('label', { className: 'dws-field' },
-                        h('span', { className: 'dws-label' }, t('bucket')),
-                        h('input', {
-                          className: 'dws-input',
-                          type: 'text',
-                          spellCheck: false,
-                          value: form.bucket,
-                          onChange: (event) => patch({ bucket: event.target.value }),
-                        }),
-                        h('span', { className: 'dws-hint' }, t('bucketHint')),
-                      )
-                    : null,
-                  isS3
-                    ? h('label', { className: 'dws-field' },
-                        h('span', { className: 'dws-label' }, t('region')),
-                        h('input', {
-                          className: 'dws-input',
-                          type: 'text',
-                          spellCheck: false,
-                          value: form.region,
-                          onChange: (event) => patch({ region: event.target.value }),
-                        }),
-                        h('span', { className: 'dws-hint' }, t('regionHint')),
-                      )
-                    : null,
-                  h('label', { className: 'dws-field' },
-                    h('span', { className: 'dws-label' }, t(isS3 ? 'accessKey' : 'username')),
-                    h('input', {
-                      className: 'dws-input',
-                      type: 'text',
-                      autoComplete: 'username',
-                      value: form.username,
-                      onChange: (event) => patch({ username: event.target.value }),
-                    }),
-                  ),
-                  h('label', { className: 'dws-field' },
-                    h('span', { className: 'dws-label' }, t(isS3 ? 'secretKey' : 'password')),
-                    h('input', {
-                      className: 'dws-input',
-                      type: 'password',
-                      autoComplete: 'new-password',
-                      placeholder: config && config.hasPassword ? t('passwordStored') : t('passwordEmpty'),
-                      value: form.password,
-                      onChange: (event) => patch({ password: event.target.value, clearPassword: false }),
-                    }),
-                    h('div', { className: 'dws-inline' },
-                      h(Switch, {
-                        checked: form.clearPassword === true,
-                        onChange: (value) => patch({ clearPassword: value, password: '' }),
-                        label: t('clearPassword'),
+                  h('div', { className: 'dws-grid' },
+                    h('label', { className: 'dws-field wide' },
+                      h('span', { className: 'dws-label' }, t(isS3 ? 'endpoint' : 'url')),
+                      h('input', {
+                        className: 'dws-input',
+                        type: 'url',
+                        spellCheck: false,
+                        placeholder: isS3 ? 'https://s3.example.com:9000' : 'https://dav.example.com/dav',
+                        value: form.url,
+                        onChange: (event) => patch({ url: event.target.value }),
                       }),
-                      h('span', null, t('clearPassword')),
+                    ),
+                    isS3
+                      ? h('label', { className: 'dws-field' },
+                          h('span', { className: 'dws-label' }, t('bucket')),
+                          h('input', {
+                            className: 'dws-input',
+                            type: 'text',
+                            spellCheck: false,
+                            value: form.bucket,
+                            onChange: (event) => patch({ bucket: event.target.value }),
+                          }),
+                        )
+                      : null,
+                    isS3
+                      ? h('label', { className: 'dws-field' },
+                          h('span', { className: 'dws-label' }, t('region')),
+                          h('input', {
+                            className: 'dws-input',
+                            type: 'text',
+                            spellCheck: false,
+                            value: form.region,
+                            onChange: (event) => patch({ region: event.target.value }),
+                          }),
+                        )
+                      : null,
+                    h('label', { className: 'dws-field' },
+                      h('span', { className: 'dws-label' }, t(isS3 ? 'accessKey' : 'username')),
+                      h('input', {
+                        className: 'dws-input',
+                        type: 'text',
+                        autoComplete: 'username',
+                        value: form.username,
+                        onChange: (event) => patch({ username: event.target.value }),
+                      }),
+                    ),
+                    h('label', { className: 'dws-field' },
+                      h('span', { className: 'dws-label' }, t(isS3 ? 'secretKey' : 'password')),
+                      h('input', {
+                        className: 'dws-input',
+                        type: 'password',
+                        autoComplete: 'new-password',
+                        placeholder: config && config.hasPassword ? t('passwordStored') : '',
+                        value: form.password,
+                        onChange: (event) => patch({ password: event.target.value, clearPassword: false }),
+                      }),
+                    ),
+                    h('label', { className: 'dws-field' },
+                      h('span', { className: 'dws-label' }, t(isS3 ? 'keyPrefix' : 'remoteRoot')),
+                      h('input', {
+                        className: 'dws-input',
+                        type: 'text',
+                        spellCheck: false,
+                        value: form.remoteRoot,
+                        onChange: (event) => patch({ remoteRoot: event.target.value }),
+                      }),
+                    ),
+                    h('div', { className: 'dws-save-cell' },
+                      h('button', {
+                        type: 'button',
+                        className: 'dws-btn primary',
+                        disabled: Boolean(busy),
+                        onClick: () => { void save() },
+                      }, busy === 'save' ? t('saving') : t('save')),
                     ),
                   ),
-                  h('label', { className: 'dws-field' },
-                    h('span', { className: 'dws-label' }, t('passwordEnv')),
-                    h('input', {
-                      className: 'dws-input',
-                      type: 'text',
-                      spellCheck: false,
-                      value: form.passwordEnv,
-                      onChange: (event) => patch({ passwordEnv: event.target.value }),
-                    }),
-                    h('span', { className: 'dws-hint' }, t('passwordEnvHint')),
-                  ),
-                  h('label', { className: 'dws-field' },
-                    h('span', { className: 'dws-label' }, t(isS3 ? 'keyPrefix' : 'remoteRoot')),
-                    h('input', {
-                      className: 'dws-input',
-                      type: 'text',
-                      spellCheck: false,
-                      value: form.remoteRoot,
-                      onChange: (event) => patch({ remoteRoot: event.target.value }),
-                    }),
-                    h('span', { className: 'dws-hint' }, t(isS3 ? 'keyPrefixHint' : 'remoteRootHint')),
-                  ),
+                )
+              : h('p', { className: 'dws-muted' }, statusError || t('loadFailed')),
+          ),
+
+          h('section', { className: 'dws-summary' },
+            configured
+              ? h('span', null, `${t('lastSync')} · ${formatTime(render && render.lastSyncAt, locale)}`)
+              : null,
+            configured
+              ? h('span', { className: 'dws-counts' },
+                  h('span', { title: t('uploaded') }, `↑${counts.uploaded ?? 0}`),
+                  h('span', { title: t('downloaded') }, `↓${counts.downloaded ?? 0}`),
+                  h('span', { title: t('conflicts'), className: counts.conflicts ? 'dws-warn-text' : '' }, `⇄${counts.conflicts ?? 0}`),
+                  h('span', { title: t('failed'), className: counts.failed ? 'dws-error-text' : '' }, `!${counts.failed ?? 0}`),
+                )
+              : null,
+            h('span', { className: 'dws-links' },
+              h('button', { type: 'button', className: 'dws-link', onClick: () => setShowAdvanced((value) => !value) }, showAdvanced ? t('hide') : t('advanced')),
+              h('button', { type: 'button', className: 'dws-link', onClick: () => setShowLog((value) => !value) }, showLog ? t('hide') : t('logs')),
+            ),
+          ),
+
+          errorLine ? h('p', { className: 'dws-error', title: errorLine }, errorLine) : null,
+          !errorLine && render && !configured ? h('p', { className: 'dws-muted' }, t('notConfiguredHint')) : null,
+          formError ? h('p', { className: 'dws-error' }, formError) : null,
+          notice ? h('p', { className: 'dws-ok' }, notice) : null,
+
+          showAdvanced && form
+            ? h('section', { className: 'dws-card' },
+                h('div', { className: 'dws-grid' },
                   h('label', { className: 'dws-field' },
                     h('span', { className: 'dws-label' }, t('pollInterval')),
                     h('input', {
@@ -744,7 +747,6 @@ window.__ModuleLoader__.load({
                       value: form.pollSeconds,
                       onChange: (event) => patch({ pollSeconds: event.target.value }),
                     }),
-                    h('span', { className: 'dws-hint' }, t('pollHint')),
                   ),
                   h('label', { className: 'dws-field' },
                     h('span', { className: 'dws-label' }, t('conflictPolicy')),
@@ -769,126 +771,70 @@ window.__ModuleLoader__.load({
                       h('option', { value: 'restore' }, t('restore')),
                     ),
                   ),
-                  h('div', { className: 'dws-field wide' },
-                    h('div', { className: 'dws-inline' },
-                      h(Switch, {
-                        checked: form.watch !== false,
-                        onChange: (value) => patch({ watch: value }),
-                        label: t('watch'),
-                      }),
-                      h('span', null, t('watch')),
-                    ),
+                  h('label', { className: 'dws-field' },
+                    h('span', { className: 'dws-label' }, t('passwordEnv')),
+                    h('input', {
+                      className: 'dws-input',
+                      type: 'text',
+                      spellCheck: false,
+                      value: form.passwordEnv,
+                      onChange: (event) => patch({ passwordEnv: event.target.value }),
+                    }),
                   ),
-                  h('div', { className: 'dws-field wide' },
-                    h('span', { className: 'dws-label' }, t('scopes')),
-                    h('div', { className: 'dws-scopes' },
-                      Object.keys(scopeLabels).map((key) => {
-                        const scope = scopes.find((item) => item.key === key)
-                        return h('div', { key, className: 'dws-scope' },
-                          h(Switch, {
-                            checked: form.scopes[key] !== false && (key !== 'credentials' || form.scopes[key] === true),
-                            onChange: (value) => patchScope(key, value),
-                            label: scopeLabels[key],
-                          }),
-                          h('span', { className: 'dws-scope-body' },
-                            h('span', { className: 'dws-scope-name' }, scopeLabels[key]),
-                            scope && scope.local
-                              ? h('span', { className: 'dws-scope-path' }, `${scope.local} · ${scope.trackedFiles ?? 0} ${t('files')}`)
-                              : null,
-                          ),
-                        )
-                      }),
-                    ),
-                    form.scopes.credentials === true
-                      ? h('span', { className: 'dws-hint' }, t('credentialsNote'))
-                      : null,
-                  ),
-                  h('div', { className: 'dws-save-row' },
-                    h('span', { className: 'dws-save-note' }, busy === 'save' ? t('saving') : ''),
-                    h('button', {
-                      type: 'button',
-                      className: 'dws-btn primary',
-                      disabled: Boolean(busy),
-                      onClick: () => { void save() },
-                    }, busy === 'save' ? t('saving') : t('save')),
-                  ),
-                )
-              : h('div', { className: 'dws-empty' }, statusError || t('loadFailed')),
-          ),
-
-          h('section', { className: 'dws-card' },
-            h('h2', null, t('statusTitle'),
-              render && render.profileName ? h('span', { className: 'dws-card-note' }, `· ${render.profileName}`) : null,
-            ),
-            h('div', { className: 'dws-stats' },
-              stat(h, t('uploaded'), counts.uploaded),
-              stat(h, t('downloaded'), counts.downloaded),
-              stat(h, t('conflicts'), counts.conflicts),
-              stat(h, t('failed'), counts.failed),
-              stat(h, t('tracked'), (render && render.scopes ? render.scopes.reduce((sum, item) => sum + (item.trackedFiles ?? 0), 0) : 0)),
-            ),
-            h('div', { className: 'dws-meta' },
-              meta(h, t('lastSync'), formatTime(render && render.lastSyncAt, locale)),
-              meta(h, t('remoteTarget'), render && render.remote
-                ? render.remote.provider === 's3'
-                  ? `s3://${render.remote.bucket || '—'}/${render.remote.root || ''}`
-                  : `${render.remote.url || '—'} / ${render.remote.root || '—'}`
-                : '—'),
-              meta(h, t('configFile'), render && render.configFile ? render.configFile : '—', true),
-              meta(h, t('conflictCopies'), `${(render && render.conflictsOnDisk) ?? 0} ${t('copies')}`),
-            ),
-          ),
-
-          h('section', { className: 'dws-card' },
-            h('h2', null, t('localScopes')),
-            scopes.length === 0
-              ? h('div', { className: 'dws-empty' }, t('noActivity'))
-              : h('div', { className: 'dws-form' },
-                  scopes.map((scope) => h('div', { key: scope.key, className: 'dws-scope' },
-                    h('span', { className: 'dws-dot', style: { marginTop: 6, color: scope.localExists ? 'var(--dsw-alias-state-success-primary)' : 'var(--dsw-alias-state-idle-primary)' } }),
-                    h('span', { className: 'dws-scope-body' },
-                      h('span', { className: 'dws-scope-name' }, scopeLabels[scope.key] ?? scope.key),
-                      h('span', { className: 'dws-scope-path' }, `${scope.local} → ${scope.remote}`),
-                      h('span', { className: 'dws-scope-path' }, `${scope.trackedFiles ?? 0} ${t('tracked')}`),
-                    ),
+                ),
+                h('div', { className: 'dws-inline' },
+                  h(Switch, {
+                    checked: form.watch !== false,
+                    onChange: (value) => patch({ watch: value }),
+                    label: t('watch'),
+                  }),
+                  h('span', null, t('watch')),
+                  h('span', { className: 'dws-spacer' }),
+                  h(Switch, {
+                    checked: form.clearPassword === true,
+                    onChange: (value) => patch({ clearPassword: value, password: '' }),
+                    label: t('clearPassword'),
+                  }),
+                  h('span', null, t('clearPassword')),
+                ),
+                h('div', { className: 'dws-scopes' },
+                  Object.keys(scopeLabels).map((key) => h('div', { key, className: 'dws-scope' },
+                    h(Switch, {
+                      checked: form.scopes[key] !== false && (key !== 'credentials' || form.scopes[key] === true),
+                      onChange: (value) => patchScope(key, value),
+                      label: scopeLabels[key],
+                    }),
+                    h('span', null, scopeLabels[key]),
                   )),
                 ),
-          ),
-
-          warnings.length > 0
-            ? h('section', { className: 'dws-card' },
-                h('h2', null, t('warnings')),
-                h('ul', { className: 'dws-list' }, warnings.map((warning, index) => h('li', { key: index }, warning))),
+                form.scopes.credentials === true
+                  ? h('p', { className: 'dws-muted', style: { marginTop: 10 } }, t('credentialsNote'))
+                  : null,
+                warnings.length > 0
+                  ? h('div', { className: 'dws-muted', style: { marginTop: 10 } }, warnings.map((warning, index) => h('div', { key: index }, warning)))
+                  : null,
+                render && render.configFile
+                  ? h('div', { className: 'dws-muted', style: { marginTop: 10 } }, render.configFile)
+                  : null,
               )
             : null,
 
-          h('section', { className: 'dws-card' },
-            h('h2', null, t('recent')),
-            recent.length === 0
-              ? h('div', { className: 'dws-empty' }, render ? t('activityEmpty') : t('noActivity'))
-              : h('div', { className: 'dws-log' },
-                  recent.map((entry, index) => h('div', { key: `${entry.at}-${index}`, className: 'dws-log-row' },
-                    h('span', { className: 'dws-log-time' }, clockTime(entry.at)),
-                    h('span', { className: `dws-log-level ${entry.level === 'warn' ? 'warn' : entry.level === 'error' ? 'error' : ''}` }, entry.level ?? 'info'),
-                    h('span', { className: 'dws-log-text' }, entry.message ?? ''),
-                  )),
-                ),
-          ),
+          showLog
+            ? h('section', { className: 'dws-card' },
+                recent.length === 0
+                  ? h('p', { className: 'dws-muted' }, t('activityEmpty'))
+                  : h('div', { className: 'dws-log' },
+                      recent.slice(0, 8).map((entry, index) => h('div', {
+                        key: `${entry.at}-${index}`,
+                        className: `dws-log-row ${entry.level === 'warn' ? 'warn' : entry.level === 'error' ? 'error' : ''}`,
+                      },
+                        h('span', { className: 'dws-log-time' }, clockTime(entry.at)),
+                        h('span', { className: 'dws-log-text' }, entry.message ?? ''),
+                      )),
+                    ),
+              )
+            : null,
         ),
-      )
-    }
-
-    function stat(h, label, value) {
-      return h('div', { className: 'dws-stat' },
-        h('b', null, String(value ?? 0)),
-        h('span', null, label),
-      )
-    }
-
-    function meta(h, label, value, code) {
-      return h('div', { className: 'dws-meta-row' },
-        h('span', { className: 'dws-meta-label' }, label),
-        h('span', { className: `dws-meta-value${code ? ' dws-code' : ''}` }, value ?? '—'),
       )
     }
 

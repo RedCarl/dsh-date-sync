@@ -135,6 +135,12 @@ check('apply registers dictionaries, the sidebar icon, and the main panel', () =
   // box and inherits the same geometry as the balance-panel indicator.
   assert.equal(svg.children.filter((child) => child && child.type === 'circle').length, 0)
 
+  const mainWrapper = main.component({})
+  assert.equal(typeof mainWrapper.type, 'function')
+  const page = mainWrapper.type(mainWrapper.props)
+  assert.equal(page.type, 'div')
+  assert.ok(JSON.stringify(page).includes('dws-segmented'))
+
   for (const dispose of effects) {
     if (typeof dispose === 'function') dispose()
   }
