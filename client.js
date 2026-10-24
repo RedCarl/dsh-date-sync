@@ -98,6 +98,7 @@ window.__ModuleLoader__.load({
       advanced: '高级',
       basic: '基本',
       activityEmpty: '同步引擎会在这里记录上传、下载、冲突和错误。',
+      loading: '载入中…',
       logs: '日志',
       hide: '收起',
       notConfiguredHint: '填写连接信息并保存后开始同步',
@@ -188,6 +189,7 @@ window.__ModuleLoader__.load({
       advanced: 'Advanced',
       basic: 'Basics',
       activityEmpty: 'Uploads, downloads, conflicts, and errors will appear here.',
+      loading: 'Loading…',
       logs: 'Log',
       hide: 'Hide',
       notConfiguredHint: 'Fill in the connection and save to start',
@@ -708,7 +710,7 @@ window.__ModuleLoader__.load({
                     ),
                   ),
                 )
-              : h('p', { className: 'dws-muted' }, statusError || t('loadFailed')),
+              : h('p', { className: 'dws-muted' }, statusError || t('loading')),
           ),
 
           h('section', { className: 'dws-summary' },
