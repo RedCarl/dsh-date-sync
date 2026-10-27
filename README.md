@@ -52,17 +52,25 @@ S3 的 `If-Match` / `If-None-Match` 条件写入用于防止并发覆盖；服�
 
 ## 安装
 
-插件包位于本仓库根目录。任选一种：
+不需要 npm 账号，直接从 GitHub 仓库安装：
 
 ```bash
-# 1) 直接从 GitHub 安装
-dsh plugin --profile web add github:RedCarl/dsh-date-sync
-
-# 2) 安装本地目录（等价于 install_bundle）
-dsh plugin --profile web add link:/absolute/path/to/dsh-date-sync
+dsh plugin --profile web add https://github.com/RedCarl/dsh-date-sync
 ```
 
-仓库：<https://github.com/RedCarl/dsh-date-sync>
+也可以在 DSH 的「设置 → 插件」里粘贴上面的 GitHub 地址，安装后刷新页面。
+
+每个版本会自动发布到 [GitHub Releases](https://github.com/RedCarl/dsh-date-sync/releases)（`v1.3.2` 起）。离线或锁定版本时，下载对应的 `*.tgz`，用本地绝对路径安装：
+
+```bash
+dsh plugin --profile web add /absolute/path/dsh-date-sync-1.3.2.tgz
+```
+
+本地开发时仍然可以链接目录：
+
+```bash
+dsh plugin --profile web add link:/absolute/path/to/dsh-date-sync
+```
 
 ## 左侧栏面板
 
