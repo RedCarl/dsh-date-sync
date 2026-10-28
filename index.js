@@ -160,6 +160,29 @@ export function apply(ctx, rawConfig) {
   const configDir = path.join(dshHome, 'date-sync')
   const configFile = path.join(configDir, 'config.json')
   const packageDir = path.dirname(fileURLToPath(import.meta.url))
+  const updateResultFile = path.join(configDir, 'update.json')
+
+  function loadUpdateResult() {
+    try {
+      const result = JSON.parse(fs.readFileSync(updateResultFile, 'utf8'))
+      if (result && (result.state === 'done' || result.state === 'error') && result.finishedAt
+        && Date.now() - Date.parse(result.finishedAt) < 60 * 60_000) {
+        return result
+      }
+    } catch {
+      // No previous update result.
+    }
+    return { state: 'idle' }
+  }
+
+  function saveUpdateResult(result) {
+    try {
+      fs.mkdirSync(configDir, { recursive: true, mode: 0o700 })
+      fs.writeFileSync(updateResultFile, JSON.stringify(result), { mode: 0o600 })
+    } catch {
+      // A failed write only loses the post-update confirmation.
+    }
+  }
 
   let fileConfig
   let fileConfigError
@@ -175,7 +198,7 @@ export function apply(ctx, rawConfig) {
     checkedAt: 0,
     error: undefined,
   }
-  let updateJob = { state: 'idle' }
+  let updateJob = loadUpdateResult()
   let updateInFlight
 
   function loadFileConfig() {
@@ -427,7 +450,9 @@ export function apply(ctx, rawConfig) {
     updateInFlight = (async () => {
       try {
         const release = await checkLatestRelease()
-        const current = readPackageVersion(packageDir) ?? updateState.current
+        // Compare against the loaded version; a linked checkout may already
+        // contain newer files that only take effect after the reload.
+        const current = updateState.current ?? readPackageVersion(packageDir)
         const wasAvailable = updateState.available
         updateState = {
           ...updateState,
@@ -466,6 +491,7 @@ export function apply(ctx, rawConfig) {
       const mode = detectInstallMode(rowConfig.profileDir, 'dsh-date-sync')
       if (mode === 'link' && fs.existsSync(path.join(packageDir, '.git'))) {
         const nextVersion = await gitUpdate(packageDir)
+        updateState = { ...updateState, current: nextVersion ?? updateState.current }
         updateJob = {
           state: 'done',
           method: 'git',
@@ -474,6 +500,7 @@ export function apply(ctx, rawConfig) {
           finishedAt: new Date().toISOString(),
         }
         logger?.info?.(`[date-sync] updated to v${updateJob.to} via git`)
+        saveUpdateResult(updateJob)
         scheduleReload()
       } else {
         const manager = optionalService(ctx, 'pluginManager')
@@ -497,9 +524,11 @@ export function apply(ctx, rawConfig) {
         }
       }
       logger?.info?.(`[date-sync] updated to v${updateJob.to} via ${updateJob.method}`)
+      saveUpdateResult(updateJob)
       void refreshUpdate(true)
     } catch (error) {
       updateJob = { state: 'error', from, to, message: errorMessage(error) }
+      saveUpdateResult(updateJob)
       logger?.error?.(`[date-sync] update failed: ${errorMessage(error)}`)
     }
   }
@@ -627,6 +656,7 @@ export function apply(ctx, rawConfig) {
         const from = updateState.current
         const to = updateState.latest
         updateJob = { state: 'running', from, to, startedAt: new Date().toISOString() }
+        saveUpdateResult(updateJob)
         sendJson(res, 202, { started: true, from, to })
         void performUpdate(from, to)
       },
