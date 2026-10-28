@@ -98,6 +98,14 @@ window.__ModuleLoader__.load({
       advanced: '高级',
       basic: '基本',
       activityEmpty: '同步引擎会在这里记录上传、下载、冲突和错误。',
+      updateAvailable: '新版本 {version} 可用',
+      updateNow: '更新',
+      updating: '正在更新…',
+      updateDone: '已更新',
+      refresh: '刷新',
+      updateFailed: '更新失败',
+      checkUpdate: '检查更新',
+      version: '版本',
       loading: '载入中…',
       logs: '日志',
       hide: '收起',
@@ -189,6 +197,14 @@ window.__ModuleLoader__.load({
       advanced: 'Advanced',
       basic: 'Basics',
       activityEmpty: 'Uploads, downloads, conflicts, and errors will appear here.',
+      updateAvailable: 'Version {version} is available',
+      updateNow: 'Update',
+      updating: 'Updating…',
+      updateDone: 'Updated',
+      refresh: 'Refresh',
+      updateFailed: 'Update failed',
+      checkUpdate: 'Check for updates',
+      version: 'Version',
       loading: 'Loading…',
       logs: 'Log',
       hide: 'Hide',
@@ -249,6 +265,8 @@ window.__ModuleLoader__.load({
       .dws-switch:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
       .dws-switch-thumb { display: block; width: 15px; height: 15px; border-radius: 50%; background: var(--dsw-alias-switch-thumb); transition: transform 0.12s ease, background-color 0.12s ease; }
       .dws-switch[aria-checked="true"] .dws-switch-thumb { transform: translateX(15px); background: var(--dsw-alias-label-primary-foreground); }
+      .dws-update { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 9px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-bg-layer-2); font-size: 12px; }
+      .dws-update .dws-link { margin-left: auto; color: var(--dsw-alias-brand-primary); }
       .dws-log { display: flex; flex-direction: column; }
       .dws-log-row { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--dsw-alias-border-l1); font-size: 12px; align-items: baseline; }
       .dws-log-row:last-child { border-bottom: none; }
@@ -547,6 +565,33 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const checkUpdate = async () => {
+        setBusy('check')
+        setFormError('')
+        try {
+          const result = await requestJson('action', { method: 'POST', body: JSON.stringify({ action: 'check-update' }) })
+          if (result && result.status) setStatus(result.status)
+        } catch (error) {
+          setFormError(errorText(error))
+        } finally {
+          setBusy('')
+        }
+      }
+
+      const startUpdate = async () => {
+        setBusy('update')
+        setFormError('')
+        setNotice('')
+        try {
+          await requestJson('update', { method: 'POST', body: '{}' })
+          setNotice(t('updating'))
+        } catch (error) {
+          setFormError(errorText(error))
+        } finally {
+          setBusy('')
+        }
+      }
+
       const render = status && typeof status === 'object' ? status : undefined
       const configured = Boolean(render && render.configured)
       const paused = Boolean(render && render.paused)
@@ -586,6 +631,11 @@ window.__ModuleLoader__.load({
       }
 
       const isS3 = form && form.provider === 's3'
+      const update = render && render.update ? render.update : undefined
+      const updateJob = update && update.job ? update.job : undefined
+      const updateRunning = updateJob?.state === 'running'
+      const updateDone = updateJob?.state === 'done'
+      const updateFailed = updateJob?.state === 'error'
       const errorLine = render ? (render.configError || render.connectionError || render.lastError || '') : ''
       const scopeLabels = {
         skills: t('scopeSkills'),
@@ -731,6 +781,29 @@ window.__ModuleLoader__.load({
             ),
           ),
 
+          update && update.available && !updateRunning && !updateDone
+            ? h('div', { className: 'dws-update' },
+                h('span', null, t('updateAvailable', { version: update.latest })),
+                h('button', {
+                  type: 'button',
+                  className: 'dws-link',
+                  disabled: Boolean(busy),
+                  onClick: () => { void startUpdate() },
+                }, t('updateNow')),
+              )
+            : null,
+          updateRunning ? h('p', { className: 'dws-muted' }, t('updating')) : null,
+          updateDone
+            ? h('div', { className: 'dws-update' },
+                h('span', null, `${t('updateDone')} · v${updateJob.to}`),
+                h('button', {
+                  type: 'button',
+                  className: 'dws-link',
+                  onClick: () => location.reload(),
+                }, t('refresh')),
+              )
+            : null,
+          updateFailed ? h('p', { className: 'dws-error', title: updateJob.message }, `${t('updateFailed')}: ${updateJob.message}`) : null,
           errorLine ? h('p', { className: 'dws-error', title: errorLine }, errorLine) : null,
           !errorLine && render && !configured ? h('p', { className: 'dws-muted' }, t('notConfiguredHint')) : null,
           formError ? h('p', { className: 'dws-error' }, formError) : null,
@@ -818,6 +891,16 @@ window.__ModuleLoader__.load({
                 render && render.configFile
                   ? h('div', { className: 'dws-muted', style: { marginTop: 10 } }, render.configFile)
                   : null,
+                h('div', { className: 'dws-muted', style: { marginTop: 10 } },
+                  `${t('version')} ${update?.current ?? ''}`,
+                  h('button', {
+                    type: 'button',
+                    className: 'dws-link',
+                    style: { marginLeft: 10 },
+                    disabled: Boolean(busy),
+                    onClick: () => { void checkUpdate() },
+                  }, t('checkUpdate')),
+                ),
               )
             : null,
 

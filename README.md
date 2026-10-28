@@ -72,6 +72,18 @@ dsh plugin --profile web add /absolute/path/dsh-date-sync-1.3.2.tgz
 dsh plugin --profile web add link:/absolute/path/to/dsh-date-sync
 ```
 
+## 更新
+
+插件启动约 8 秒后检查 [GitHub Releases](https://github.com/RedCarl/dsh-date-sync/releases)，之后每 6 小时检查一次；「高级 → 检查更新」可以手动触发。
+
+发现新版本时，面板会显示「新版本 vX 可用 · 更新」：
+
+- **本地 `link:` 安装**：执行 `git pull --ff-only` 更新源码，工作区有未提交改动时会拒绝；成功后自动重载插件
+- **打包安装**：通过 `pluginManager` 安装 Release 里的新版 `tgz`，自动重载
+- 更新完成后刷新页面即可
+
+如果不需要自动检查，在配置文件里设 `checkUpdates: false`。
+
 ## 左侧栏面板
 
 安装并刷新页面后，左侧栏图标栏会出现一个云同步图标（与插件、日程等图标并列）。点击后主区域打开 **数据同步** 面板：

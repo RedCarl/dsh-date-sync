@@ -16,9 +16,18 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { resolveConfig } from './lib/config.js'
 import { SyncEngine } from './lib/sync.js'
 import { resolvePath } from './lib/util.js'
+import {
+  UPDATE_REPO,
+  checkLatestRelease,
+  compareVersions,
+  detectInstallMode,
+  gitUpdate,
+  readPackageVersion,
+} from './lib/update.js'
 
 /** Loader entry name. */
 export const name = 'date-sync'
@@ -150,12 +159,24 @@ export function apply(ctx, rawConfig) {
     ?? path.join(os.homedir(), '.dsh')
   const configDir = path.join(dshHome, 'date-sync')
   const configFile = path.join(configDir, 'config.json')
+  const packageDir = path.dirname(fileURLToPath(import.meta.url))
 
   let fileConfig
   let fileConfigError
   let engine
   let configError
   let lifecycle = Promise.resolve()
+  let updateState = {
+    current: readPackageVersion(packageDir),
+    latest: undefined,
+    available: false,
+    url: undefined,
+    assetUrl: undefined,
+    checkedAt: 0,
+    error: undefined,
+  }
+  let updateJob = { state: 'idle' }
+  let updateInFlight
 
   function loadFileConfig() {
     try {
@@ -257,6 +278,15 @@ export function apply(ctx, rawConfig) {
       configSource: fileConfig ? 'file' : (fileConfigError ? 'invalid-file' : 'profile'),
       profileName: rowConfig.profileName ?? '',
       configFileError: fileConfigError,
+      update: {
+        current: updateState.current,
+        latest: updateState.latest,
+        available: updateState.available,
+        url: updateState.url,
+        checkedAt: updateState.checkedAt ? new Date(updateState.checkedAt).toISOString() : undefined,
+        error: updateState.error,
+        job: { ...updateJob },
+      },
     }
   }
 
@@ -390,8 +420,103 @@ export function apply(ctx, rawConfig) {
     return sanitizedConfig()
   }
 
+  async function refreshUpdate(force = false) {
+    if (rowConfig.checkUpdates === false) return
+    if (!force && updateState.checkedAt && Date.now() - updateState.checkedAt < 60 * 60_000) return
+    if (updateInFlight) return updateInFlight
+    updateInFlight = (async () => {
+      try {
+        const release = await checkLatestRelease()
+        const current = readPackageVersion(packageDir) ?? updateState.current
+        const wasAvailable = updateState.available
+        updateState = {
+          ...updateState,
+          current,
+          latest: release.version,
+          url: release.url,
+          assetUrl: release.assetUrl,
+          checkedAt: Date.now(),
+          error: undefined,
+          available: compareVersions(release.version, current) > 0,
+        }
+        if (updateState.available && !wasAvailable) {
+          logger?.info?.(`[date-sync] update available: v${release.version} (current v${current})`)
+        }
+      } catch (error) {
+        updateState = { ...updateState, checkedAt: Date.now(), error: errorMessage(error) }
+      } finally {
+        updateInFlight = undefined
+      }
+    })()
+    return updateInFlight
+  }
+
+  function scheduleReload() {
+    const hmr = optionalService(ctx, 'hmr')
+    if (hmr && typeof hmr.reconcileProfile === 'function') {
+      setTimeout(() => {
+        Promise.resolve(hmr.reconcileProfile()).catch(() => {})
+      }, 1200).unref?.()
+    }
+  }
+
+  async function performUpdate(from, to) {
+    try {
+      logger?.info?.(`[date-sync] updating v${from} → v${to}`)
+      const mode = detectInstallMode(rowConfig.profileDir, 'dsh-date-sync')
+      if (mode === 'link' && fs.existsSync(path.join(packageDir, '.git'))) {
+        const nextVersion = await gitUpdate(packageDir)
+        updateJob = {
+          state: 'done',
+          method: 'git',
+          from,
+          to: nextVersion ?? to,
+          finishedAt: new Date().toISOString(),
+        }
+        logger?.info?.(`[date-sync] updated to v${updateJob.to} via git`)
+        scheduleReload()
+      } else {
+        const manager = optionalService(ctx, 'pluginManager')
+        if (!manager || typeof manager.installBundle !== 'function') {
+          throw new Error('pluginManager 不可用，请手动安装新版')
+        }
+        const spec = updateState.assetUrl
+          || `https://github.com/${UPDATE_REPO}/releases/download/v${to}/dsh-date-sync-${to}.tgz`
+        const result = await manager.installBundle(spec)
+        if (result?.application === 'failed') {
+          throw new Error(result?.error?.message ?? 'pluginManager rejected the update')
+        }
+        updateJob = {
+          state: 'done',
+          method: 'package',
+          from,
+          to: readPackageVersion(packageDir) ?? to,
+          restartRequired: result?.application === 'restart-required',
+          warning: Array.isArray(result?.warnings) && result.warnings.length > 0 ? result.warnings.join('; ') : undefined,
+          finishedAt: new Date().toISOString(),
+        }
+      }
+      logger?.info?.(`[date-sync] updated to v${updateJob.to} via ${updateJob.method}`)
+      void refreshUpdate(true)
+    } catch (error) {
+      updateJob = { state: 'error', from, to, message: errorMessage(error) }
+      logger?.error?.(`[date-sync] update failed: ${errorMessage(error)}`)
+    }
+  }
+
   loadFileConfig()
   boot()
+
+  ctx.effect(() => {
+    const initial = setTimeout(() => { void refreshUpdate(true) }, 8000)
+    const timer = setInterval(() => { void refreshUpdate(true) }, 6 * 60 * 60_000)
+    initial.unref?.()
+    timer.unref?.()
+    return () => {
+      clearTimeout(initial)
+      clearInterval(timer)
+    }
+  })
 
   // A package that was already scanned by the client module graph without a
   // `dsh.client` section keeps that negative verdict until the Host restarts.
@@ -488,6 +613,25 @@ export function apply(ctx, rawConfig) {
       },
     })
 
+    route(`${API_BASE}/update`, {
+      POST: async (_req, res) => {
+        if (updateJob.state === 'running') {
+          sendJson(res, 409, { error: 'update already running', status: statusPayload() })
+          return
+        }
+        await refreshUpdate(true)
+        if (!updateState.available) {
+          sendJson(res, 200, { updated: false, status: statusPayload() })
+          return
+        }
+        const from = updateState.current
+        const to = updateState.latest
+        updateJob = { state: 'running', from, to, startedAt: new Date().toISOString() }
+        sendJson(res, 202, { started: true, from, to })
+        void performUpdate(from, to)
+      },
+    })
+
     route(`${API_BASE}/action`, {
       POST: async (req, res) => {
       if (String(req.headers['content-type'] ?? '').split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') {
@@ -502,8 +646,13 @@ export function apply(ctx, rawConfig) {
         return
       }
       const action = typeof body.action === 'string' ? body.action : 'status'
-      if (!['status', 'sync', 'pause', 'resume'].includes(action)) {
+      if (!['status', 'sync', 'pause', 'resume', 'check-update'].includes(action)) {
         sendJson(res, 400, { error: `unsupported action: ${action}` })
+        return
+      }
+      if (action === 'check-update') {
+        await refreshUpdate(true)
+        sendJson(res, 200, { action, status: statusPayload() })
         return
       }
       await lifecycle

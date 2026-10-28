@@ -144,6 +144,7 @@ apply(fakeCtx, {
   scopes: { skills: true, agentSkills: false, sessions: true, profile: true },
   syncOnStart: false,
   watch: false,
+  checkUpdates: false,
   pollIntervalMs: 3_600_000,
 })
 
@@ -274,6 +275,19 @@ await check('S3 mode validates the bucket and switches the engine', async () => 
   const disk = JSON.parse(await fsp.readFile(configFile, 'utf8'))
   assert.equal(disk.provider, 's3')
   assert.equal(disk.bucket, 'panel-bucket')
+})
+
+await check('update status is exposed and a no-op update is safe', async () => {
+  const status = await call('GET', '/api/date-sync/status')
+  assert.equal(typeof status.json.update.current, 'string')
+  assert.equal(status.json.update.available, false)
+  const update = await call('POST', '/api/date-sync/update')
+  assert.equal(update.response.status, 200)
+  assert.equal(update.json.updated, false)
+  const checked = await call('POST', '/api/date-sync/action', { action: 'check-update' })
+  assert.equal(checked.response.status, 200)
+  assert.equal(checked.json.action, 'check-update')
+  assert.equal(typeof checked.json.status.update.current, 'string')
 })
 
 await check('a non-JSON body is refused before parsing', async () => {
