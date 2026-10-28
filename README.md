@@ -231,6 +231,7 @@ dsh plugin --profile web add <package>
 node test/sync-test.mjs   # 本地起一个临时 WebDAV 服务，模拟两台机器
 node test/panel-test.mjs  # 用假的 Cordis Context 驱动面板 JSON 接口
 node test/s3-test.mjs     # 本地 S3 服务（验证 SigV4）+ 双机器同步
+node test/update-test.mjs # 版本比较、GitHub Release 解析、git 更新
 node test/client-test.mjs # 在隔离 VM 中执行 Client 模块并检查 slot 注册
 ```
 
