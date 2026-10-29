@@ -52,18 +52,19 @@ S3 的 `If-Match` / `If-None-Match` 条件写入用于防止并发覆盖；服�
 
 ## 安装
 
-不需要 npm 账号，直接从 GitHub 仓库安装：
+从私有 npm 源安装：
 
 ```bash
-dsh plugin --profile web add https://github.com/RedCarl/dsh-date-sync
+dsh plugin --profile web add dsh-date-sync@latest
 ```
 
-也可以在 DSH 的「设置 → 插件」里粘贴上面的 GitHub 地址，安装后刷新页面。
-
-每个版本会自动发布到 [GitHub Releases](https://github.com/RedCarl/dsh-date-sync/releases)（`v1.3.2` 起）。离线或锁定版本时，下载对应的 `*.tgz`，用本地绝对路径安装：
+profile 需要认识私有源（`dsh-registry enable --profile web` 会写入
+`@local:registry=https://npm.carljoy.cn/`；`dsh-date-sync` 是 unscoped 包，也可以用
+`--registry https://npm.carljoy.cn/` 单独指定）。也可以直接在
+[npm.carljoy.cn](https://npm.carljoy.cn/) 的 Web 界面下载 tgz 离线安装：
 
 ```bash
-dsh plugin --profile web add /absolute/path/dsh-date-sync-1.3.2.tgz
+dsh plugin --profile web add /absolute/path/dsh-date-sync-1.5.0.tgz
 ```
 
 本地开发时仍然可以链接目录：
@@ -74,12 +75,12 @@ dsh plugin --profile web add link:/absolute/path/to/dsh-date-sync
 
 ## 更新
 
-插件启动约 8 秒后检查 [GitHub Releases](https://github.com/RedCarl/dsh-date-sync/releases)，之后每 6 小时检查一次；「高级 → 检查更新」可以手动触发。
+插件启动约 8 秒后检查私有源（`https://npm.carljoy.cn/dsh-date-sync` 的 `dist-tags.latest`），之后每 6 小时检查一次；「高级 → 检查更新」可以手动触发。成功结果缓存 10 分钟。
 
 发现新版本时，面板会显示「新版本 vX 可用 · 更新」：
 
 - **本地 `link:` 安装**：执行 `git pull --ff-only` 更新源码，工作区有未提交改动时会拒绝；成功后自动重载插件
-- **打包安装**：通过 `pluginManager` 安装 Release 里的新版 `tgz`，自动重载
+- **打包安装**：通过 `pluginManager` 安装 registry 上的同一版本；HMR 拒绝覆盖时回退到该版本的 registry tarball
 - 更新完成后刷新页面即可
 
 如果不需要自动检查，在配置文件里设 `checkUpdates: false`。
@@ -231,7 +232,7 @@ dsh plugin --profile web add <package>
 node test/sync-test.mjs   # 本地起一个临时 WebDAV 服务，模拟两台机器
 node test/panel-test.mjs  # 用假的 Cordis Context 驱动面板 JSON 接口
 node test/s3-test.mjs     # 本地 S3 服务（验证 SigV4）+ 双机器同步
-node test/update-test.mjs # 版本比较、GitHub Release 解析、git 更新
+node test/update-test.mjs # 版本比较、registry packument、tarball 回退、git 更新
 node test/client-test.mjs # 在隔离 VM 中执行 Client 模块并检查 slot 注册
 ```
 

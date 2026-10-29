@@ -16,21 +16,24 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { resolveConfig } from './lib/config.js'
 import { SyncEngine } from './lib/sync.js'
 import { resolvePath } from './lib/util.js'
 import {
-  UPDATE_REPO,
-  checkLatestRelease,
-  compareVersions,
-  detectInstallMode,
-  gitUpdate,
+  applyUpdate,
+  checkForUpdate,
   readPackageVersion,
+  resolveInstall,
+  scheduleReload,
 } from './lib/update.js'
 
 /** Loader entry name. */
 export const name = 'date-sync'
+
+/** npm package name, used for registry checks and installs. */
+const PACKAGE_NAME = 'dsh-date-sync'
+/** Version of the module that is actually loaded (a link: checkout may differ on disk). */
+const PLUGIN_VERSION = readPackageVersion(import.meta.url) ?? '0.0.0'
 
 const API_BASE = '/api/date-sync'
 const CONFIG_BODY_LIMIT = 256 * 1024
@@ -159,7 +162,6 @@ export function apply(ctx, rawConfig) {
     ?? path.join(os.homedir(), '.dsh')
   const configDir = path.join(dshHome, 'date-sync')
   const configFile = path.join(configDir, 'config.json')
-  const packageDir = path.dirname(fileURLToPath(import.meta.url))
   const updateResultFile = path.join(configDir, 'update.json')
 
   function loadUpdateResult() {
@@ -190,11 +192,11 @@ export function apply(ctx, rawConfig) {
   let configError
   let lifecycle = Promise.resolve()
   let updateState = {
-    current: readPackageVersion(packageDir),
+    current: PLUGIN_VERSION,
     latest: undefined,
     available: false,
     url: undefined,
-    assetUrl: undefined,
+    tarball: undefined,
     checkedAt: 0,
     error: undefined,
   }
@@ -445,27 +447,41 @@ export function apply(ctx, rawConfig) {
 
   async function refreshUpdate(force = false) {
     if (rowConfig.checkUpdates === false) return
-    if (!force && updateState.checkedAt && Date.now() - updateState.checkedAt < 60 * 60_000) return
+    // The shared updater caches successful checks for 10 minutes; no second
+    // per-plugin cache, so every plugin in the family refreshes the same way.
     if (updateInFlight) return updateInFlight
     updateInFlight = (async () => {
       try {
-        const release = await checkLatestRelease()
-        // Compare against the loaded version; a linked checkout may already
-        // contain newer files that only take effect after the reload.
-        const current = updateState.current ?? readPackageVersion(packageDir)
+        const install = resolveInstall({ metaUrl: import.meta.url, packageName: PACKAGE_NAME })
+        const manager = optionalService(ctx, 'pluginManager')
+        const state = await checkForUpdate({
+          packageName: PACKAGE_NAME,
+          currentVersion: PLUGIN_VERSION,
+          installedVersion: readPackageVersion(install.packageDir),
+          mode: install.mode,
+          installable: typeof manager?.installBundle === 'function',
+          force,
+          userAgent: `${PACKAGE_NAME}/${PLUGIN_VERSION}`,
+        })
+        if (state.ok !== true) {
+          // Keep the previous verdict: a transient registry failure must not
+          // hide an update the panel already offered.
+          updateState = { ...updateState, checkedAt: Date.now(), error: state.error ?? 'update check failed' }
+          return
+        }
         const wasAvailable = updateState.available
         updateState = {
           ...updateState,
-          current,
-          latest: release.version,
-          url: release.url,
-          assetUrl: release.assetUrl,
+          current: state.current ?? PLUGIN_VERSION,
+          latest: state.latest,
+          available: state.updateAvailable === true,
+          url: state.releaseUrl,
+          tarball: state.tarball,
           checkedAt: Date.now(),
           error: undefined,
-          available: compareVersions(release.version, current) > 0,
         }
         if (updateState.available && !wasAvailable) {
-          logger?.info?.(`[date-sync] update available: v${release.version} (current v${current})`)
+          logger?.info?.(`[date-sync] update available: v${updateState.latest} (current v${updateState.current})`)
         }
       } catch (error) {
         updateState = { ...updateState, checkedAt: Date.now(), error: errorMessage(error) }
@@ -476,56 +492,49 @@ export function apply(ctx, rawConfig) {
     return updateInFlight
   }
 
-  function scheduleReload() {
-    const hmr = optionalService(ctx, 'hmr')
-    if (hmr && typeof hmr.reconcileProfile === 'function') {
-      setTimeout(() => {
-        Promise.resolve(hmr.reconcileProfile()).catch(() => {})
-      }, 1200).unref?.()
-    }
-  }
-
   async function performUpdate(from, to) {
     try {
       logger?.info?.(`[date-sync] updating v${from} → v${to}`)
-      const mode = detectInstallMode(rowConfig.profileDir, 'dsh-date-sync')
-      if (mode === 'link' && fs.existsSync(path.join(packageDir, '.git'))) {
-        const nextVersion = await gitUpdate(packageDir)
-        updateState = { ...updateState, current: nextVersion ?? updateState.current }
+      const install = resolveInstall({ metaUrl: import.meta.url, packageName: PACKAGE_NAME })
+      const result = await applyUpdate({
+        packageName: PACKAGE_NAME,
+        targetVersion: updateState.latest ?? to,
+        mode: install.mode,
+        packageDir: install.packageDir,
+        pluginManager: optionalService(ctx, 'pluginManager'),
+        tarballUrl: updateState.tarball,
+      })
+      if (result.method === 'git') {
+        scheduleReload(ctx, PACKAGE_NAME)
+        updateState = { ...updateState, current: result.to ?? updateState.current }
         updateJob = {
           state: 'done',
           method: 'git',
-          from,
-          to: nextVersion ?? to,
+          from: result.from ?? from,
+          to: result.to ?? to,
           finishedAt: new Date().toISOString(),
         }
         logger?.info?.(`[date-sync] updated to v${updateJob.to} via git`)
-        saveUpdateResult(updateJob)
-        scheduleReload()
       } else {
-        const manager = optionalService(ctx, 'pluginManager')
-        if (!manager || typeof manager.installBundle !== 'function') {
-          throw new Error('pluginManager 不可用，请手动安装新版')
-        }
-        const spec = updateState.assetUrl
-          || `https://github.com/${UPDATE_REPO}/releases/download/v${to}/dsh-date-sync-${to}.tgz`
-        const result = await manager.installBundle(spec)
-        if (result?.application === 'failed') {
-          throw new Error(result?.error?.message ?? 'pluginManager rejected the update')
-        }
+        const failed = result.application === 'failed'
         updateJob = {
-          state: 'done',
+          state: failed ? 'error' : 'done',
           method: 'package',
-          from,
-          to: readPackageVersion(packageDir) ?? to,
-          restartRequired: result?.application === 'restart-required',
-          warning: Array.isArray(result?.warnings) && result.warnings.length > 0 ? result.warnings.join('; ') : undefined,
+          from: result.from ?? from,
+          to: result.to ?? to,
+          restartRequired: result.restartRequired === true,
+          warning: Array.isArray(result.warnings) && result.warnings.length > 0 ? result.warnings.join('; ') : undefined,
           finishedAt: new Date().toISOString(),
         }
+        if (failed) {
+          updateJob.message = result.error?.message ?? 'pluginManager rejected the update'
+          logger?.error?.(`[date-sync] update failed: ${updateJob.message}`)
+        } else {
+          logger?.info?.(`[date-sync] updated to v${updateJob.to} via package`)
+        }
       }
-      logger?.info?.(`[date-sync] updated to v${updateJob.to} via ${updateJob.method}`)
       saveUpdateResult(updateJob)
-      void refreshUpdate(true)
+      if (updateJob.state !== 'error') void refreshUpdate(true)
     } catch (error) {
       updateJob = { state: 'error', from, to, message: errorMessage(error) }
       saveUpdateResult(updateJob)
