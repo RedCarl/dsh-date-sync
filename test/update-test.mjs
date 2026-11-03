@@ -253,3 +253,19 @@ test('returns a refused installation with its diagnostics instead of throwing', 
   assert.equal(result.error.message, 'incompatible')
   assert.deepEqual(result.pendingBuilds, ['esbuild'])
 })
+
+test('falls back to diagnostic, reason, or code when the install error has no message', async () => {
+  const failure = async (error) => {
+    const result = await applyUpdate({
+      packageName: '@test/package-diagnostic',
+      targetVersion: '4.0.0',
+      mode: 'package',
+      pluginManager: { async installBundle() { return { application: 'failed', error } } },
+    })
+    return result.error.message
+  }
+  assert.equal(await failure({ code: 'incompatible-version', diagnostic: 'incompatible-version: engines.dsh' }), 'incompatible-version: engines.dsh')
+  assert.equal(await failure({ code: 'refused', reason: 'not permitted' }), 'not permitted')
+  assert.equal(await failure({ code: 'unknown-error' }), 'unknown-error')
+  assert.equal(await failure({}), 'update failed')
+})

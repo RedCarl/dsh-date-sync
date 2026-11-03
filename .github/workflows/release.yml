@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref_name }}
@@ -20,14 +20,33 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Pack the DSH bundle
-        run: npm pack
-      - name: Publish the tarball to the GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check that the tag matches the package version
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" ./*.tgz --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME" ./*.tgz
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json version $version" >&2
+            exit 1
           fi
+      - name: Run the update, panel, client, sync, S3 tests, and the update rule
+        run: |
+          node --test test/update-test.mjs test/update-rule.test.mjs
+          node test/panel-test.mjs
+          node test/client-test.mjs
+          node test/sync-test.mjs
+          node test/s3-test.mjs
+      - name: Verify the tarball ships the shared updater
+        run: |
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
+          node -e 'const pack = require(process.argv[1])[0]; const files = pack.files.map((file) => file.path); if (!files.includes("lib/update.js")) { console.error("lib/update.js missing from the tarball"); process.exit(1) }' "$RUNNER_TEMP/pack.json"
+      - name: Publish to the private registry
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NPM_TOKEN:-}" ]; then
+            echo "missing repository secret NPM_TOKEN (publish token for https://npm.carljoy.cn/)" >&2
+            exit 1
+          fi
+          umask 077
+          printf 'registry=https://npm.carljoy.cn/\n//npm.carljoy.cn/:_authToken=%s\n' "$NPM_TOKEN" > "$RUNNER_TEMP/npmrc"
+          npm publish --registry https://npm.carljoy.cn/ --userconfig "$RUNNER_TEMP/npmrc"
