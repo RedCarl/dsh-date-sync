@@ -237,6 +237,49 @@ test('falls back to the registry tarball when HMR refuses an installed package',
   assert.equal(result.to, '2.0.0')
 })
 
+test('retries from the returned already-installed result, which DSH folds instead of throwing', async () => {
+  const calls = []
+  const tarball = 'https://npm.carljoy.cn/@test/package-folded/-/package-folded-2.1.0.tgz'
+  const result = await applyUpdate({
+    packageName: '@test/package-folded',
+    targetVersion: '2.1.0',
+    mode: 'package',
+    tarballUrl: tarball,
+    pluginManager: {
+      async installBundle(spec, options) {
+        calls.push({ spec, options })
+        if (spec.startsWith('@test/')) {
+          return { application: 'failed', error: { code: 'already-installed' }, changed: false }
+        }
+        return { application: 'restart-required', version: '2.1.0', changed: true }
+      },
+    },
+  })
+  assert.deepEqual(calls, [
+    { spec: '@test/package-folded@2.1.0', options: { registry: UPDATE_REGISTRY } },
+    { spec: tarball, options: { registry: UPDATE_REGISTRY } },
+  ])
+  assert.equal(result.application, 'restart-required')
+  assert.equal(result.restartRequired, true)
+  assert.equal(result.to, '2.1.0')
+})
+
+test('reports already-installed unchanged when no registry tarball is available', async () => {
+  const result = await applyUpdate({
+    packageName: '@test/package-no-tarball',
+    targetVersion: '2.2.0',
+    mode: 'package',
+    pluginManager: {
+      async installBundle() {
+        return { application: 'failed', error: { code: 'already-installed' }, changed: false }
+      },
+    },
+  })
+  assert.equal(result.application, 'failed')
+  assert.equal(result.error.code, 'already-installed')
+  assert.equal(result.error.message, 'already-installed')
+})
+
 test('returns a refused installation with its diagnostics instead of throwing', async () => {
   const result = await applyUpdate({
     packageName: '@test/package-refused',
