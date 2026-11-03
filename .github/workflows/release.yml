@@ -38,6 +38,13 @@ jobs:
         run: |
           npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
           node -e 'const pack = require(process.argv[1])[0]; const files = pack.files.map((file) => file.path); if (!files.includes("lib/update.js")) { console.error("lib/update.js missing from the tarball"); process.exit(1) }' "$RUNNER_TEMP/pack.json"
+      - name: Check that the registry is reachable from this runner
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://npm.carljoy.cn/-/ping || true)
+          if [ "$code" != "200" ]; then
+            echo "npm.carljoy.cn returned $code; the WAF geo rule may block this runner. Use a CN runner or allow the registry host in WAF." >&2
+            exit 1
+          fi
       - name: Publish to the private registry
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
